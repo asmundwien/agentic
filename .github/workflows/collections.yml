@@ -1,0 +1,60 @@
+name: Generate collections
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-collections
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the artifact repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          path: artifact
+      - name: Read source main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: asmundwien/agentic-src
+          ref: main
+          path: source
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: source/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+      - name: Install build dependencies
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+      - name: Build every collection at locked revisions
+        working-directory: source
+        run: pnpm build
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Update generated content on main
+        working-directory: artifact
+        shell: bash
+        run: |
+          mkdir -p collections
+          rsync -a --delete ../source/dist/collections/ collections/
+          git add -- collections
+          if git diff --cached --quiet; then
+            echo 'Generated content is unchanged.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Generate collections from $(git -C ../source rev-parse HEAD)"
+          git push origin HEAD:main
