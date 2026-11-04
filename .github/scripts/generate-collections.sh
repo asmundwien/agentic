@@ -2,13 +2,13 @@
 set -euo pipefail
 
 source_root=$(cd "$1" && pwd)
-# Require a new output directory; publication replaces the old collections later.
+# Refuse to overwrite an existing output directory.
 mkdir "$2"
 output=$(cd "$2" && pwd)
 workspace=$(mktemp -d)
 trap 'rm -rf "$workspace"' EXIT
 
-# Never reuse downloaded inputs, even when running from a developer checkout.
+# Exclude previously downloaded content from the source checkout.
 rsync -a \
   --exclude='/*/.rulesync/rules/.curated/' \
   --exclude='/*/.rulesync/skills/.curated/' \
@@ -26,7 +26,7 @@ for config in "${configs[@]}"; do
   name=${collection##*/}
   (cd "$collection" && rulesync install --frozen)
 
-  # Flatten upstream content, then apply authored content without conversion.
+  # Copy upstream files first. Local files take precedence.
   for feature in rules skills; do
     input="$collection/.rulesync/$feature"
     target="$output/$name/$feature"

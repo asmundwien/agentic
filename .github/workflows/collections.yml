@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out the artifact repository
+      - name: Check out this repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: main
           path: artifact
 
-      - name: Read source main
+      - name: Check out source content
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: asmundwien/agentic-src
@@ -33,15 +33,15 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install collection tooling
+      - name: Install Rulesync
         run: npm install --global --ignore-scripts rulesync@43.6.0
 
-      - name: Assemble collections at locked revisions
+      - name: Generate collections from locked dependencies
         run: bash artifact/.github/scripts/generate-collections.sh source "$RUNNER_TEMP/collections"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Update generated content on main
+      - name: Publish generated collections
         working-directory: artifact
         shell: bash
         run: |
